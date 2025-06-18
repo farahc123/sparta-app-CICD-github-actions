@@ -54,3 +54,30 @@ jobs:
           git merge dev --no-ff -m "Merged dev to main via GitHub Actions"
           git remote set-url origin git@github.com:farahc123/sparta-app-CICD-github-actions.git
           git push origin main
+
+  docker:
+    needs: merge  # Runs after 'merge' is successful
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set IMAGE_TAG environment variable
+        run: echo "IMAGE_TAG=farahc123/github-actions-sparta-app:${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker image
+        run: |
+          echo "Building image $IMAGE_TAG"
+          docker build -t $IMAGE_TAG .
+
+      - name: Push Docker image
+        run: |
+          echo "Pushing image $IMAGE_TAG"
+          docker push $IMAGE_TAG
