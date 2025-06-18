@@ -76,7 +76,7 @@ jobs:
           git push origin main
 
   docker:
-    needs: merge  # Runs after 'merge' is successful
+    needs: merge 
     runs-on: ubuntu-latest
 
     steps:
@@ -101,3 +101,35 @@ jobs:
         run: |
           echo "Pushing image $IMAGE_TAG"
           docker push $IMAGE_TAG
+
+  notify-finish:
+    needs: [build, merge, docker]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Send Slack notification (pipeline finished)
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          # maps GitHub job.status to Slack color
+          COLOR="#439FE0"  # default blue
+          if [ "${JOB_STATUS}" = "success" ]; then
+            COLOR="good"
+          elif [ "${JOB_STATUS}" = "failure" ]; then
+            COLOR="danger"
+          else
+            COLOR="warning"
+          fi
+
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{
+              "channel": "#devopscicd",
+              "attachments": [
+                {
+                  "color": "'"${COLOR}"'",
+                  "text": "*Pipeline '"${JOB_STATUS^^}"':*\nWorkflow `${{ github.workflow }}`\nRun #${{ github.run_number }}\nMore info at: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                }
+              ]
+            }' \
+            $SLACK_WEBHOOK_URL
