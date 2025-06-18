@@ -1,4 +1,4 @@
-name: Node.js CI and Merge to Main
+name: CICD Pipeline for Sparta app
 
 on:
   push:
