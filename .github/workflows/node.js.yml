@@ -1,29 +1,56 @@
-# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
-
-name: Node.js CI
+name: Node.js CI and Merge to Main
 
 on:
   push:
     branches: [ "dev" ]
   pull_request:
     branches: [ "dev" ]
+  workflow_dispatch:  # allows manual runs too
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         node-version: [20.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Installing NPM (Use Node.js ${{ matrix.node-version }})
-      working-directory: ./app
-      run: npm install
-    - name: Testing with NPM
-      working-directory: ./app
-      run: npm test
+      - uses: actions/checkout@v4
+
+      - name: Installing NPM (Node.js ${{ matrix.node-version }})
+        working-directory: ./app
+        run: npm install
+
+      - name: Testing with NPM
+        working-directory: ./app
+        run: npm test
+
+  merge:
+    needs: build  # only runs if build/test pass
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout dev branch
+        uses: actions/checkout@v3
+        with:
+          ref: dev
+          fetch-depth: 0  # full history required for merging
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Merge dev into main and push
+        run: |
+          set -e
+          git checkout main
+          git pull origin main --rebase
+          git merge dev --no-ff -m "Merged dev to main via GitHub Actions"
+          git remote set-url origin git@github.com:farahc123/sparta-app-CICD-github-actions.git
+          git push origin main
