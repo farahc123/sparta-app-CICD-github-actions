@@ -8,7 +8,27 @@ on:
   workflow_dispatch:  # allows manual runs too
 
 jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Slack notification (pipeline started)
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data '{
+              "channel": "#devopscicd",
+              "attachments": [
+                {
+                  "color": "#439FE0",
+                  "text": "*GitHub Actions pipeline started:*\nWorkflow `${{ github.workflow }}`\nRun #${{ github.run_number }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                }
+              ]
+            }' \
+            $SLACK_WEBHOOK_URL
+
   build:
+    needs: notify
     runs-on: ubuntu-latest
     strategy:
       matrix:
